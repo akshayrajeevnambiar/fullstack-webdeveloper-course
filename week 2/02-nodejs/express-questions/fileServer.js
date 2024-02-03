@@ -30,6 +30,19 @@ app.get("/files", (req, res) => {
   });
 });
 
+// Returns content of given file by name.
+app.get("/files/:filename", (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, "files/" + filename);
+
+  fs.readFile(filePath, "utf-8", (err, data) => {
+    if (err) {
+      return res.status(404).send("File Not Found");
+    }
+    return res.status(200).send(data);
+  });
+});
+
 // Listening to port 3000.
 app.listen(3000);
 

@@ -2,9 +2,9 @@
   "name": "express-questions",
   "version": "1.0.0",
   "description": "",
-  "main": "fileServer.js",
+  "main": "todoServer.js",
   "scripts": {
-    "devStart": "nodemon fileServer.js"
+    "devStart": "nodemon todoServer.js"
   },
   "keywords": [],
   "author": "",
