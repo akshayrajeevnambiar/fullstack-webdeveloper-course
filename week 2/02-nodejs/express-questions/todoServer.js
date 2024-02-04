@@ -39,11 +39,67 @@
 
   Testing the server - run `npm run test-todoServer` command in terminal
  */
-  const express = require('express');
-  const bodyParser = require('body-parser');
-  
-  const app = express();
-  
-  app.use(bodyParser.json());
-  
-  module.exports = app;
+const express = require("express");
+const bodyParser = require("body-parser");
+
+const app = express();
+
+app.use(bodyParser.json());
+
+const PORT = 3000;
+
+// In-memory storage for todo items
+let todos = [];
+
+// Middleware to parse JSON requests
+app.use(express.json());
+
+// Middleware to log requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
+// Endpoint to retrieve all todo items
+app.get("/todos", (req, res) => {
+  res.status(200).json(todos);
+});
+
+// Endpoint to create a new todo item
+app.post("/todos", (req, res) => {
+  const { title, description } = req.body;
+
+  if (!title || !description) {
+    return res
+      .status(400)
+      .json({ error: "Title and description are required." });
+  }
+
+  const todo = {
+    id: generateUniqueId(),
+    title,
+    description,
+  };
+
+  todos.push(todo);
+  saveDataToFile(todos);
+
+  res.status(201).json(todo);
+});
+
+// Function to generate a unique ID
+function generateUniqueId() {
+  return new Date().getTime().toString();
+}
+
+// Function to save data to a file
+function saveDataToFile(data) {
+  fs.writeFileSync("todos.json", JSON.stringify(data), "utf-8");
+}
+
+// Initialize the server
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+module.exports = app;
