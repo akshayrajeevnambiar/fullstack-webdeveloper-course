@@ -40,66 +40,122 @@
   Testing the server - run `npm run test-todoServer` command in terminal
  */
 const express = require("express");
+const fs = require("fs").promises;
+const path = require("path");
 const bodyParser = require("body-parser");
 
 const app = express();
+
+// setting the working dir;
+const workingDir = path.join(__dirname, "files/todos.json");
 
 app.use(bodyParser.json());
 
 const PORT = 3000;
 
-// In-memory storage for todo items
-let todos = [];
-
-// Middleware to parse JSON requests
-app.use(express.json());
-
-// Middleware to log requests
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next();
-});
-
-// Endpoint to retrieve all todo items
-app.get("/todos", (req, res) => {
-  res.status(200).json(todos);
-});
-
-// Endpoint to create a new todo item
-app.post("/todos", (req, res) => {
-  const { title, description } = req.body;
-
-  if (!title || !description) {
-    return res
-      .status(400)
-      .json({ error: "Title and description are required." });
+// Creating two utility functions for reading and writting.
+async function readFile() {
+  try {
+    const data = await fs.readFile(workingDir, "utf-8");
+    return JSON.parse(data);
+  } catch (err) {
+    return [];
   }
+}
 
-  const todo = {
-    id: generateUniqueId(),
-    title,
-    description,
-  };
+async function writeFile(data) {
+  try {
+    await fs.writeFile(workingDir, JSON.stringify(data));
+  } catch (err) {
+    throw new Error(err);
+  }
+}
 
-  todos.push(todo);
-  saveDataToFile(todos);
-
-  res.status(201).json(todo);
+// GET /todos - Retrieve all todo items
+app.get("/todos", async (req, res) => {
+  try {
+    const todos = await readFile();
+    res.status(200).send(todos);
+  } catch (err) {
+    console.log(err);
+  }
 });
 
-// Function to generate a unique ID
-function generateUniqueId() {
-  return new Date().getTime().toString();
-}
+// GET /todos/:id - Retrieve a specific todo item by ID
+app.get("/todos/:id", async (req, res) => {
+  try {
+    const todos = await readFile();
+    const todo = todos.find((t) => t.id === parseInt(req.params.id));
 
-// Function to save data to a file
-function saveDataToFile(data) {
-  fs.writeFileSync("todos.json", JSON.stringify(data), "utf-8");
-}
+    if (todo) {
+      res.status(200).send(todo);
+    } else {
+      res.status(500).send("ID Not Found");
+    }
+  } catch (err) {
+    res.status(500).send(err);
+  }
+});
 
-// Initialize the server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+// Listening to specified port
+app.listen(PORT);
+
+// POST /todos - Create a new todo item
+app.post("/todos", async (req, res) => {
+  try {
+    const todos = await readFile();
+    const newTodo = {
+      id: todos.length + 1,
+      title: req.body.title,
+      completed: req.body.completed || false,
+      description: req.body.description || "",
+    };
+    todos.push(newTodo);
+    await writeFile(todos);
+    res.status(200).send("new todo created");
+  } catch (err) {
+    res.status(500).send(err);
+  }
+});
+
+// PUT /todos/:id - Update an existing todo item by ID
+app.put("/todos/:id", async (req, res) => {
+  const todoId = parseInt(req.params.id);
+  try {
+    const todos = await readDataFromFile();
+    const index = todos.findIndex((t) => t.id === todoId);
+    if (index !== -1) {
+      todos[index] = {
+        id: todoId,
+        title: req.body.title || todos[index].title,
+        completed: req.body.completed || todos[index].completed,
+        description: req.body.description || todos[index].description,
+      };
+      await writeDataToFile(todos);
+      res.status(200).send("OK");
+    } else {
+      res.status(404).send("Not Found");
+    }
+  } catch (error) {
+    res.status(500).send("Internal Error");
+  }
+});
+
+// DELETE /todos/:id - Delete a todo item by ID
+app.delete("/todos/:id", async (req, res) => {
+  const todoId = parseInt(req.params.id);
+  try {
+    const todos = await readDataFromFile();
+    const updatedTodos = todos.filter((t) => t.id !== todoId);
+    if (updatedTodos.length < todos.length) {
+      await writeDataToFile(updatedTodos);
+      res.status(200).send("OK");
+    } else {
+      res.status(404).send("Not Found");
+    }
+  } catch (error) {
+    res.status(500).send("Internal Error");
+  }
 });
 
 module.exports = app;
